@@ -1,2 +1,3 @@
 /server/goTwinder
+/consumer/goTwinderRMQConsumer
 .DS_Store
