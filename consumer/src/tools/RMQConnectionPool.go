@@ -14,7 +14,7 @@ type ChannelPool struct {
 }
 
 // NewChannelPool creates a new ChannelPool with a given capacity and a factory function that produces new items for the pool.
-func NewChannelPool(capacity int) *ChannelPool {
+func NewRMQChannelPool(capacity int) *ChannelPool {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	chPool := make(chan *amqp.Channel, capacity)
