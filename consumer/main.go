@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"goTwinderRMQConsumer/src/tools"
 	"goTwinderRMQConsumer/src/helpers"
 	"goTwinderRMQConsumer/src/managers"
 	"goTwinderRMQConsumer/src/repositories"
@@ -19,13 +20,13 @@ var (
 
 func main() {
 	db := managers.MySqlConnectDatabase()
-	managers.RMQConnect()
+	cp := tools.NewRMQChannelPool(numChannel)
 	
 	for i := 0; i < numChannel; i++ {
 		threadNum, cnt, likes, dislikes := i, 0, []schemas.Swipe{}, []schemas.Swipe{}
 		go func() {
 			for {
-				msgs := managers.RMQConsumeWithQName("swipeQueue", threadNum)
+				msgs := managers.RMQConsumeWithQName(cp, "swipeQueue", threadNum)
 				for d := range msgs {
 					log.Printf("Received a message: %s from thread %d", d.Body, threadNum)
 					var swipe schemas.Swipe

@@ -7,14 +7,7 @@ import(
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-var numChannel = 20
-var channelPool *tools.ChannelPool
-
-func RMQConnect() {
-	channelPool = tools.NewRMQChannelPool(numChannel)
-}
-
-func RMQConsumeWithQName(qName string, threadNum int) <-chan amqp.Delivery {
+func RMQConsumeWithQName( channelPool *tools.ChannelPool, qName string, threadNum int) <-chan amqp.Delivery {
 	ch := channelPool.Get()
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C thread %d", threadNum)
 	q, err := ch.QueueDeclare(
