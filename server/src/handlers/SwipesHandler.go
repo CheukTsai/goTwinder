@@ -24,7 +24,7 @@ func SwipesHandler(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool
 
 func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 	log.Printf("got / POST swipes request\n")
-	isvalid, msg := isUrlValid(r)
+	isvalid, leftorright, msg := isUrlValid(r)
 	if !isvalid {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
@@ -44,6 +44,9 @@ func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 		http.Error(w, "Missing body attribute", http.StatusBadRequest)
 		return
 	}
+
+	swipe.Like = leftorright
+
 	swipeJSON, err := json.Marshal(swipe)
 
 	if err != nil {
@@ -89,20 +92,20 @@ func isValidSwipe(swipe *schemas.Swipe) bool {
 	return swipe.Swiper != 0 && swipe.Swipee != 0 && swipe.Comment != ""
 }
 
-func isUrlValid(r *http.Request) (bool, string) {
+func isUrlValid(r *http.Request) (bool, bool, string) {
 	vars := mux.Vars(r)
 
 	leftOrRight, ok := vars["leftorright"]
 
 	if !ok {
-		return false, "Missing parameter leftOrRight"
+		return false, false, "Missing parameter leftOrRight"
 	}
 
 	if leftOrRight != "left" && leftOrRight != "right" {
-		return false, "Wrong parameter, shall be chosen from left and right"
+		return false, false, "Wrong parameter, shall be chosen from left and right"
 	}
 
-	return true, ""
+	return true, leftOrRight == "left", ""
 }
 
 func failOnError(err error, msg string) {
