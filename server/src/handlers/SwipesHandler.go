@@ -8,27 +8,28 @@ import (
 	"net/http"
 	"encoding/json"
 	"goTwinder/src/schemas"
+	"goTwinder/src/tools"
 	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"strconv"
 )
 
-func SwipesHandler(w http.ResponseWriter, r *http.Request) {
+func SwipesHandler(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 	if (r.Method == http.MethodPost) {
-		PostSwipes(w, r)
+		PostSwipes(w, r, cp)
 	} else {
 		http.Error(w, "Unsupported request method", http.StatusBadRequest)
 	}
 }
 
-func PostSwipes(w http.ResponseWriter, r *http.Request) {
+func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 	log.Printf("got / POST swipes request\n")
 	isvalid, msg := isUrlValid(r)
 	if !isvalid {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-
+	defer r.Body.Close()
 	var swipe schemas.Swipe
 
 	e := json.NewDecoder(r.Body).Decode(&swipe)
@@ -37,7 +38,7 @@ func PostSwipes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error decoding JSON request body", http.StatusBadRequest)
         return
 	}
-	defer r.Body.Close()
+	
 
 	if (!isValidSwipe(&swipe)) {
 		http.Error(w, "Missing body attribute", http.StatusBadRequest)
@@ -50,20 +51,13 @@ func PostSwipes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error parsing", http.StatusBadRequest)
 		return
 	}
-
-	sendMsgToRMQ(string(swipeJSON))
+	ch := cp.Get()
+	defer cp.Put(ch)
+	sendMsgToRMQ(string(swipeJSON), ch)
 	io.WriteString(w, "Swiper: " + strconv.Itoa(swipe.Swiper))
 }
 
-func sendMsgToRMQ(msg string) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
-
+func sendMsgToRMQ(msg string, ch *amqp.Channel) {
 	q, err := ch.QueueDeclare(
 		"swipeQueue", // name
 		true,   // durable
@@ -115,4 +109,4 @@ func failOnError(err error, msg string) {
 	if err != nil {
 	  log.Panicf("%s: %s", msg, err)
 	}
-  }
+}
