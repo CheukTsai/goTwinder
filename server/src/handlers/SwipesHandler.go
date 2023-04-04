@@ -24,7 +24,7 @@ func SwipesHandler(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool
 
 func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 	log.Printf("got / POST swipes request\n")
-	isvalid, leftorright, msg := isUrlValid(r)
+	isvalid, leftorright, msg := isSwipesUrlValid(r)
 	if !isvalid {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
@@ -92,7 +92,7 @@ func isValidSwipe(swipe *schemas.Swipe) bool {
 	return swipe.Swiper != 0 && swipe.Swipee != 0 && swipe.Comment != ""
 }
 
-func isUrlValid(r *http.Request) (bool, bool, string) {
+func isSwipesUrlValid(r *http.Request) (bool, bool, string) {
 	vars := mux.Vars(r)
 
 	leftOrRight, ok := vars["leftorright"]
