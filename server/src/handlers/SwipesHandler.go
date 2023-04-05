@@ -8,21 +8,21 @@ import (
 	"net/http"
 	"encoding/json"
 	"goTwinder/src/schemas"
-	"goTwinder/src/tools"
+	"goTwinder/src/middlewares"
 	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"strconv"
 )
 
-func SwipesHandler(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
+func SwipesHandler(w http.ResponseWriter, r *http.Request, c schemas.ConnectionCollection) {
 	if (r.Method == http.MethodPost) {
-		PostSwipes(w, r, cp)
+		PostSwipes(w, r, c)
 	} else {
 		http.Error(w, "Unsupported request method", http.StatusBadRequest)
 	}
 }
 
-func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
+func PostSwipes(w http.ResponseWriter, r *http.Request, c schemas.ConnectionCollection) {
 	log.Printf("got / POST swipes request\n")
 	isvalid, leftorright, msg := isSwipesUrlValid(r)
 	if !isvalid {
@@ -38,7 +38,7 @@ func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 		http.Error(w, "Error decoding JSON request body", http.StatusBadRequest)
         return
 	}
-	
+	middlewares.RefreshUserCache(swipe.Swiper, c.RedisClient)
 
 	if (!isValidSwipe(&swipe)) {
 		http.Error(w, "Missing body attribute", http.StatusBadRequest)
@@ -54,10 +54,16 @@ func PostSwipes(w http.ResponseWriter, r *http.Request, cp *tools.ChannelPool) {
 		http.Error(w, "error parsing", http.StatusBadRequest)
 		return
 	}
-	ch := cp.Get()
-	defer cp.Put(ch)
+	ch := c.RMQChannelPool.Get()
+	defer c.RMQChannelPool.Put(ch)
+
 	sendMsgToRMQ(string(swipeJSON), ch)
+	
 	io.WriteString(w, "Swiper: " + strconv.Itoa(swipe.Swiper))
+
+	go func(){
+
+	}()
 }
 
 func sendMsgToRMQ(msg string, ch *amqp.Channel) {

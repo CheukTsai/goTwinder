@@ -1,34 +1,34 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"goTwinder/src/schemas"
-
+	"goTwinder/src/middlewares"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
 
-func StatsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func StatsHandler(w http.ResponseWriter, r *http.Request, c schemas.ConnectionCollection) {
 	if (r.Method == http.MethodGet) {
-		GetStats(w, r, db)
+		GetStats(w, r, c)
 	} else {
 		http.Error(w, "Unsupported request method", http.StatusBadRequest)
 	}
 }
 
-func GetStats(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func GetStats(w http.ResponseWriter, r *http.Request, c schemas.ConnectionCollection) {
 	log.Printf("got / GET matches request\n")
 	uid, ok, msg := isStatsUrlValid(r)
 	if !ok {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	stmt, err := db.Prepare("SELECT\n" +
+	middlewares.RefreshUserCache(uid, c.RedisClient)
+	stmt, err := c.MySqlDatabase.Prepare("SELECT\n" +
     "(SELECT COUNT(*) FROM likes WHERE userid = ?) as num_likes,\n" +
     "(SELECT COUNT(*) FROM dislikes WHERE userid = ?) as num_dislikes")
 	

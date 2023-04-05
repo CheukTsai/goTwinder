@@ -1,34 +1,35 @@
 package handlers
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
 	"fmt"
 	"encoding/json"
 	"io"
-	
+	"goTwinder/src/schemas"
+	"goTwinder/src/middlewares"
 	"github.com/gorilla/mux"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func MatchesHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func MatchesHandler(w http.ResponseWriter, r *http.Request, c schemas.ConnectionCollection) {
 	if (r.Method == http.MethodGet) {
-		GetMatches(w, r, db)
+		GetMatches(w, r, c)
 	} else {
 		http.Error(w, "Unsupported request method", http.StatusBadRequest)
 	}
 }
 
-func GetMatches(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func GetMatches(w http.ResponseWriter, r *http.Request, c schemas.ConnectionCollection) {
 	log.Printf("got / GET matches request\n")
 	uid, ok, msg := isMatchesUrlValid(r)
 	if !ok {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	stmt, err := db.Prepare("SELECT DISTINCT l1.swipeeid FROM likes l1\n" + 
+	middlewares.RefreshUserCache(uid, c.RedisClient)
+	stmt, err := c.MySqlDatabase.Prepare("SELECT DISTINCT l1.swipeeid FROM likes l1\n" + 
 	"JOIN likes l2 ON l1.swipeeid = l2.userid AND l1.userid = l2.swipeeid\n" +
 	"WHERE l1.userid = ?")
 	
@@ -51,14 +52,7 @@ func GetMatches(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		matches = append(matches, userid)
         fmt.Printf("UserID: %s\n", userid)
     }
-	matchesJSON, err := json.Marshal(matches)
-
-	if err != nil {
-		log.Printf(err.Error())
-		http.Error(w, "error parsing", http.StatusBadRequest)
-		return
-	}
-
+	matchesJSON, _ := json.Marshal(matches)
 	io.WriteString(w, string(matchesJSON))
 }
 
